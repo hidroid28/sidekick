@@ -13,6 +13,7 @@ export interface ToolSpec { name: string; description: string; args: string; act
 
 export const TOOLS: ToolSpec[] = [
   { name: 'use_skill', description: 'Load a skill’s instructions.', args: '{"name": string}', action: false },
+  { name: 'end_skill', description: 'Leave the active skill when the user changes topic.', args: '{}', action: false },
   { name: 'search_documents', description: 'Search the uploaded documents.', args: '{"query": string}', action: false },
   { name: 'list_records', description: 'List saved quotes and expenses with totals.', args: '{}', action: false },
   { name: 'read_skill_file', description: 'Read a file from the active skill.', args: '{"path": string}', action: false },
@@ -33,6 +34,7 @@ export const TOOLS: ToolSpec[] = [
 /** With a skill active, only its `allowed_tools` apply. Actions always need a skill. */
 export function isToolAllowed(tool: ToolSpec, skill: Skill | undefined) {
   if (tool.name === 'use_skill') return true;
+  if (tool.name === 'end_skill') return skill !== undefined;
   if (!skill) return !tool.action && tool.name !== 'read_skill_file';
   return skill.allowedTools.includes(tool.name);
 }
@@ -87,6 +89,9 @@ export class ToolsService {
         this.db.setActiveSkill(context.conversationId, skill.name);
         return { kind: 'result', text: `Skill ${skill.name} is active. Follow its instructions now.` };
       }
+      case 'end_skill':
+        this.db.setActiveSkill(context.conversationId, null);
+        return { kind: 'result', text: 'The skill has ended. Continue helping the user.' };
       case 'search_documents': {
         const query = call.args.query;
         if (typeof query !== 'string' || !query.trim()) return { kind: 'result', text: 'Error: query is required.' };

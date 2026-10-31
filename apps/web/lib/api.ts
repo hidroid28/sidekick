@@ -67,6 +67,7 @@ export const api = {
   sendMessage: (id: string, text: string, image?: ImageInput) =>
     send<{ runId: string }>('POST', `/conversations/${id}/messages`, { text, image }),
   decide: (id: string, approve: boolean) => send<{ runId: string }>('POST', `/approvals/${id}/decision`, { approve }),
+  endSkill: (id: string) => send<{ activeSkill: null }>('DELETE', `/conversations/${id}/skill`),
   stopRun: (id: string) => send<{ stopped: boolean }>('POST', `/runs/${id}/stop`, {}),
   records: () => request<RecordRow[]>('/records'),
   documents: () => request<DocumentSummary[]>('/documents'),

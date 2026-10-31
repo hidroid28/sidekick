@@ -50,6 +50,11 @@ describe('isToolAllowed', () => {
   it('always allows switching skills', () => {
     expect(isToolAllowed(spec('use_skill'), skill([]))).toBe(true);
   });
+
+  it('offers end_skill only while a skill is active', () => {
+    expect(isToolAllowed(spec('end_skill'), skill([]))).toBe(true);
+    expect(isToolAllowed(spec('end_skill'), undefined)).toBe(false);
+  });
 });
 
 describe('ToolsService.dispatch', () => {
@@ -89,6 +94,16 @@ describe('ToolsService.dispatch', () => {
     const out = await tools.dispatch({ tool: 'use_skill', args: { name: 'nope' } }, { conversationId: id });
     expect(out).toMatchObject({ text: expect.stringContaining('does not exist') });
     expect(db.getConversation(id)?.active_skill).toBe('note');
+  });
+
+  it('restores the normal tools after end_skill', async () => {
+    const { tools, db, id, library } = setup();
+    db.setActiveSkill(id, 'note');
+    const active = await library.skill('note');
+    expect(tools.available(active).map((t) => t.name)).not.toContain('search_documents');
+    await tools.dispatch({ tool: 'end_skill', args: {} }, { conversationId: id, skill: active });
+    expect(db.getConversation(id)?.active_skill).toBeNull();
+    expect(tools.available(undefined).map((t) => t.name)).toContain('search_documents');
   });
 
   it('turns skill file errors into a safe message', async () => {

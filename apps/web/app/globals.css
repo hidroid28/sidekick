@@ -124,6 +124,7 @@ p { margin: 0 0 8px; }
 .bubble th, .bubble td { border: 1px solid var(--line); padding: 4px 8px; }
 .bubble pre { overflow-x: auto; }
 .sources { margin-top: 8px; font-size: 0.85rem; color: var(--muted); }
+.copy { display: block; margin-top: 6px; }
 .status { color: var(--muted); font-size: 0.9rem; }
 .approval { align-self: stretch; padding: 12px 14px; border-radius: 12px; background: var(--warn); border: 1px solid var(--warn-line); }
 .approval-label { font-size: 0.8rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 4px; }

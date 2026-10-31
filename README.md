@@ -10,7 +10,7 @@ This is a hackathon demo, built for one user at a time. If you're a coding agent
 
 ## What it does
 
-- **Chat** with streaming replies, saved history, and a Stop button.
+- **Chat** with streaming replies, saved history, a Stop button, and a Copy button on replies.
 - **Works for anyone.** The profile questions are optional, so it also works as a general assistant.
 - **Skills:** type `/` to pick one, or let the assistant choose one.
 - **Rules** that always apply, such as "never invent prices".
@@ -142,11 +142,12 @@ The starter skills are `draft-quote`, `chase-payment`, `track-expense`, `price-m
 | Tool | Type | Available |
 |---|---|---|
 | `use_skill` | read | always |
+| `end_skill` | read | while a skill is active |
 | `search_documents`, `list_records` | read | with no skill, or if the skill allows it |
 | `read_skill_file` | read | if the active skill allows it |
 | `create_quote`, `add_expense` | action, needs approval | only if the active skill allows it |
 
-Tools use a text protocol, where the model replies with a fenced `tool` block. Sidekick hides that block from the user and runs it on the server. This was chosen because I found no official confirmation that Gemma 4 supports native function calling on the Gemini API. If `check:gemma` shows that native tools work, this can be swapped later inside `src/tools/protocol.ts` and `src/llm/gemini.provider.ts`.
+Tools use a text protocol, where the model replies with a fenced `tool` block. Sidekick hides that block from the user and runs it on the server. It also accepts common variations: `tool_code` and `tool_call` fences, JSON fences that hold only a call, and `name` with `arguments` keys. Ordinary JSON stays visible. This protocol was chosen because I found no official confirmation that Gemma 4 supports native function calling on the Gemini API. If `check:gemma` shows that native tools work, this can be swapped later inside `src/tools/protocol.ts` and `src/llm/gemini.provider.ts`.
 
 ## Safety
 
@@ -170,14 +171,14 @@ npm test
 npm run typecheck
 ```
 
-There are 134 tests: 125 for the backend and 9 for the frontend's shared logic. They run offline with a fake model, so they need no key. They cover the tool protocol, permissions, approvals, money, file paths, Gemini streaming, document search, and the HTTP API.
+There are 151 tests: 142 for the backend and 9 for the frontend's shared logic. They run offline with a fake model, so they need no key. They cover the tool protocol, permissions, approvals, money, file paths, Gemini streaming, document search, and the HTTP API.
 
 During the build, these checks were also run but are not part of `npm test`:
 
-- Nine safety behaviours were broken on purpose, and the tests caught all nine.
-- The production build was driven through the demo in Microsoft Edge, against a local stand-in for the Gemini API, at desktop and phone widths.
+- Safety and protocol behaviours were broken on purpose in 15 different ways, and the tests caught all 15.
+- The production build was driven through 14 demo steps in Microsoft Edge, against a local stand-in for the Gemini API, at desktop and phone widths. That included uploading a generated image and approving the expense.
 
-Automated tests do not cover React components, camera or photo upload in a real browser, or real Gemma 4 output.
+`npm test` does not cover React components, a real receipt, a phone camera, or real Gemma 4 output.
 
 ## Build decisions
 
@@ -202,7 +203,7 @@ These changed from the original plan:
 - Scanned PDFs and DOCX files are not supported.
 - Quotes stay inside Sidekick and are not sent anywhere.
 - A server restart loses replies in progress, and saved chats and pending approvals survive.
-- A skill stays active for the rest of a chat. Start a new chat to clear it.
+- A skill stays active until you press End, the assistant ends it, or you start a new chat. While active, only its allowed tools work.
 - `ModelProvider` is ready for Ollama, but only the Gemini provider exists.
 
 ## Troubleshooting

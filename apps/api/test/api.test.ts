@@ -122,6 +122,17 @@ describe('HTTP API', () => {
     expect(detail.messages[0].text).toBe('/nope hello');
   });
 
+  it('ends the active skill, and reports a missing chat', async () => {
+    script.push('Who is the quote for?');
+    const { body: conversation } = await post('/conversations', {});
+    const sent = await post(`/conversations/${conversation.id}/messages`, { text: '/draft-quote' });
+    await events(sent.body.runId);
+    expect((await json(`/conversations/${conversation.id}`)).body.activeSkill).toBe('draft-quote');
+    expect((await json(`/conversations/${conversation.id}/skill`, { method: 'DELETE' })).status).toBe(200);
+    expect((await json(`/conversations/${conversation.id}`)).body.activeSkill).toBeNull();
+    expect((await json('/conversations/missing/skill', { method: 'DELETE' })).status).toBe(404);
+  });
+
   it('accepts a large photo within the body limit', async () => {
     script.push('Got it');
     const { body: conversation } = await post('/conversations', {});

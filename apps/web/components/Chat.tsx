@@ -14,6 +14,26 @@ const STARTERS = [
   { label: 'Price my work', text: '/price-my-work ' },
 ];
 
+function CopyButton({ text }: { text: string }) {
+  const [state, setState] = useState<'idle' | 'copied' | 'failed'>('idle');
+
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(text);
+      setState('copied');
+    } catch {
+      setState('failed');
+    }
+    setTimeout(() => setState('idle'), 2000);
+  }
+
+  return (
+    <button className="link small copy" onClick={() => void copy()}>
+      {state === 'copied' ? 'Copied' : state === 'failed' ? 'Could not copy' : 'Copy'}
+    </button>
+  );
+}
+
 function Sources({ citations }: { citations: Citation[] }) {
   const unique = uniqueCitations(citations);
   if (!unique.length) return null;
@@ -142,6 +162,16 @@ export function Chat({
     }
   }
 
+  async function endSkill() {
+    if (!conversationId) return;
+    try {
+      await api.endSkill(conversationId);
+      setActiveSkill(null);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'That skill could not be ended');
+    }
+  }
+
   function onKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
     if (event.key === 'Enter' && !event.shiftKey) {
       event.preventDefault();
@@ -173,6 +203,7 @@ export function Chat({
             {message.hasImage && <p className="muted small">Photo attached</p>}
             {message.role === 'assistant' ? <Markdown>{message.text}</Markdown> : <p>{message.text}</p>}
             <Sources citations={message.citations} />
+            {message.role === 'assistant' && <CopyButton text={message.text} />}
           </article>
         ))}
         {streaming && (
@@ -207,7 +238,12 @@ export function Chat({
             ))}
           </ul>
         )}
-        {activeSkill && <p className="skill-tag">Skill: {activeSkill}</p>}
+        {activeSkill && (
+          <p className="skill-tag">
+            Skill: {activeSkill}
+            <button className="link" disabled={busy || blocked} onClick={() => void endSkill()}>End</button>
+          </p>
+        )}
         {photo && (
           <p className="attachment">
             Photo ready

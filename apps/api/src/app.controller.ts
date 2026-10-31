@@ -73,6 +73,13 @@ export class AppController {
     };
   }
 
+  @Delete('conversations/:id/skill')
+  endSkill(@Param('id') id: string) {
+    if (!this.db.getConversation(id)) throw new NotFoundException('Conversation not found');
+    this.db.setActiveSkill(id, null);
+    return { activeSkill: null };
+  }
+
   @Post('conversations/:id/messages')
   send(@Ip() ip: string, @Param('id') id: string, @Body(new ZodPipe(SendMessageSchema)) message: SendMessage) {
     this.messageLimit.check(ip);

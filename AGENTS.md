@@ -18,14 +18,13 @@ Sidekick is a hackathon demo: a practical AI assistant for one person, such as a
 
 Last updated: 2026-10-31.
 
-**Done:** chat with streaming, skills and rules with an in-app editor, profile setup, approval cards, quotes, expenses, document upload with citations, the Records page, and the phone layout.
+**Done:** chat with streaming, skills and rules with an in-app editor, ending a skill, a Copy button, profile setup, approval cards, quotes, expenses, document upload with citations, the Records page, the phone layout, and tolerance for tool format drift.
 
 **Not verified:**
 
 - **Real Gemma 4 has never been used.** No API key was available, so tests used a fake model, and a browser walkthrough used a local stand-in for the Gemini API.
-- The text tool protocol is untested on real model output. It is the biggest risk in the project.
-- Attaching a receipt photo has not been tried in a real browser.
-- The walkthrough was not repeated after the final phone CSS and placeholder fix.
+- The text tool protocol is untested on real model output, even with its tolerance for format drift. It is the biggest risk in the project.
+- Photo upload works in a real browser, but only with a generated image and a stand-in model. Reading a real receipt is unproven.
 
 Do not describe any of these as working until you have seen them work. Update this section when that changes.
 
@@ -36,7 +35,7 @@ Do not describe any of these as working until you have seen them work. Update th
 3. **Run the demo by hand** using the README's three-minute script, including a real receipt photo. Fix what breaks.
 4. **Deploy** to one small server with a persistent disk, and set `DEMO_PASSCODE`.
 
-Only after those, and if the user wants them: an Ollama provider, DOCX upload, or a way to clear the active skill in a chat.
+Only after those, and if the user wants them: an Ollama provider or DOCX upload.
 
 ## Commands
 
@@ -44,7 +43,7 @@ Run everything from the repo root.
 
 ```powershell
 npm install
-npm test            # 134 offline tests, no key needed
+npm test            # 151 offline tests, no key needed
 npm run typecheck
 npm run build -w @sidekick/web
 npm run check:gemma # calls the real API, needs a key in apps/api/.env
