@@ -6,7 +6,7 @@ Its behaviour lives in plain Markdown files. Edit a rule or a skill in the app, 
 
 This is a hackathon demo, built for one user at a time. If you're a coding agent, start with [AGENTS.md](AGENTS.md).
 
-> **Status:** the full app works and is tested, but it has **not yet been run against the real Gemma 4 model**, because no API key was available during the build. Tests and the browser walkthrough used a stand-in for the Gemini API. Do step 2 of the setup below before relying on it.
+> **Status:** the app runs on real Gemma 4 (`gemma-4-26b-a4b-it`). Chat, business plans, and document questions have been tested on it. Payment links run in a labelled simulation mode until the Devdraft account passes KYC, so no real payment is made. `/draft-quote` has not been rerun on real Gemma since its tool loop was fixed.
 
 ## What it does
 
@@ -230,7 +230,7 @@ These changed from the original plan:
 
 ## Known limits
 
-- It has not been run against real Gemma 4 yet.
+- `gemma-4-31b-it` was slow and returned server errors in testing, so use `gemma-4-26b-a4b-it`.
 - It serves one user, with no accounts.
 - Search matches words and file names, not meaning. When nothing matches, the assistant sees only the opening of each document, so answers deep inside a long file can be missed.
 - Scanned PDFs and DOCX files are not supported.
