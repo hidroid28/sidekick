@@ -127,17 +127,17 @@ describe('ToolsService.dispatch', () => {
 });
 
 describe('ToolsService.execute', () => {
-  it('saves a quote with a server-calculated total', () => {
+  it('saves a quote with a server-calculated total', async () => {
     const { tools, db, id } = setup();
     const pendingId = db.createPending(id, 'create_quote', { ...quote, total: 1 }, 's');
-    expect(tools.execute(db.getPending(pendingId)!)).toContain('59.97');
+    expect(await tools.execute(db.getPending(pendingId)!)).toContain('59.97');
     expect(db.listRecords()[0]).toMatchObject({ kind: 'quote', amountCents: 5997 });
   });
 
-  it('saves an expense and defaults the category', () => {
+  it('saves an expense and defaults the category', async () => {
     const { tools, db, id } = setup();
     const pendingId = db.createPending(id, 'add_expense', { vendor: 'Shoprite', amount: 12.5 }, 's');
-    tools.execute(db.getPending(pendingId)!);
+    await tools.execute(db.getPending(pendingId)!);
     expect(db.listRecords()[0]).toMatchObject({ title: 'Shoprite (other)', amountCents: 1250 });
   });
 });

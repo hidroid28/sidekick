@@ -7,6 +7,7 @@
     "build": "npm run build -w @sidekick/shared && tsc -p .",
     "dev": "npm run build && node --env-file-if-exists=.env dist/main.js",
     "start": "npm run build && node --env-file-if-exists=.env dist/main.js",
+    "serve": "node dist/main.js",
     "pretest": "npm run build -w @sidekick/shared",
     "test": "vitest run",
     "typecheck": "npm run build -w @sidekick/shared && tsc -p tsconfig.typecheck.json",

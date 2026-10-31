@@ -3,12 +3,13 @@ import type { MessageEvent } from '@nestjs/common';
 import { map } from 'rxjs';
 import {
   DecisionSchema,
+  PaymentLinkArgsSchema,
   ProfileSchema,
   SaveFileSchema,
   SendMessageSchema,
   UploadSchema,
 } from '@sidekick/shared';
-import type { Profile, SendMessage, Upload } from '@sidekick/shared';
+import type { PaymentLinkArgs, Profile, SendMessage, Upload } from '@sidekick/shared';
 import { ChatService, toChatMessage } from './chat/chat.service.js';
 import { RunsService } from './chat/runs.service.js';
 import { RateLimiter, ZodPipe } from './common/http.js';
@@ -17,12 +18,14 @@ import type { AppConfig } from './config.js';
 import { DatabaseService } from './db/database.service.js';
 import { KnowledgeService } from './knowledge/knowledge.service.js';
 import { LibraryService } from './library/library.service.js';
+import { PaymentsService } from './payments/payments.service.js';
 
 const limiter = () => new RateLimiter(30, 60_000);
 
 @Controller()
 export class AppController {
   private readonly messageLimit = limiter();
+  private readonly paymentLimit = new RateLimiter(10, 60_000);
 
   constructor(
     @Inject(CONFIG) private readonly config: AppConfig,
@@ -31,6 +34,7 @@ export class AppController {
     @Inject(RunsService) private readonly runs: RunsService,
     @Inject(LibraryService) private readonly library: LibraryService,
     @Inject(KnowledgeService) private readonly knowledge: KnowledgeService,
+    @Inject(PaymentsService) private readonly payments: PaymentsService,
   ) {}
 
   @Get('health')
@@ -101,6 +105,27 @@ export class AppController {
   @Post('approvals/:id/decision')
   decide(@Param('id') id: string, @Body(new ZodPipe(DecisionSchema)) body: { approve: boolean }) {
     return this.chat.decide(id, body.approve);
+  }
+
+  @Get('payments/wallet')
+  paymentWallet() {
+    return this.payments.walletStatus();
+  }
+
+  @Get('payment-links')
+  paymentLinks() {
+    return this.payments.list();
+  }
+
+  @Post('payment-links')
+  createPaymentLink(@Ip() ip: string, @Body(new ZodPipe(PaymentLinkArgsSchema)) args: PaymentLinkArgs) {
+    this.paymentLimit.check(ip);
+    return this.payments.create(args);
+  }
+
+  @Get('public/pay/:token')
+  publicPayment(@Param('token') token: string) {
+    return this.payments.publicView(token);
   }
 
   @Get('records')

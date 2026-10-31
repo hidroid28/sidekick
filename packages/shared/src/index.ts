@@ -59,6 +59,48 @@ export const ExpenseArgsSchema = z.object({
 });
 export type ExpenseArgs = z.infer<typeof ExpenseArgsSchema>;
 
+export const PaymentLinkArgsSchema = z.object({
+  email: z.email('Enter a valid email address').max(200),
+  amount: z
+    .number()
+    .positive('Enter an amount above zero')
+    .max(1_000_000)
+    .refine((n) => Math.abs(n * 100 - Math.round(n * 100)) < 1e-6, 'Use at most 2 decimal places'),
+  description: z.string().trim().min(1, 'Add what the payment is for').max(200),
+});
+export type PaymentLinkArgs = z.infer<typeof PaymentLinkArgsSchema>;
+
+export type EmailStatus = 'sent' | 'not_configured' | 'failed';
+
+export interface PaymentWalletStatus { available: boolean; network?: string; message?: string; emailConfigured: boolean; simulated: boolean; }
+
+export interface PaymentLink {
+  token: string;
+  url: string;
+  recipientEmail: string;
+  description: string;
+  amount: string;
+  currency: string;
+  network: string;
+  emailStatus: EmailStatus;
+  simulated: boolean;
+  createdAt: string;
+}
+
+/** What the payer sees. It leaves out the recipient's email address. */
+export interface PublicPaymentLink {
+  description: string;
+  payee: string;
+  toAddress: string;
+  amount: string;
+  currency: string;
+  network: string;
+  fee: string | null;
+  reference: string;
+  simulated: boolean;
+  createdAt: string;
+}
+
 export interface Citation { document: string; part: number; }
 export interface PendingApproval { id: string; tool: string; summary: string; }
 
@@ -72,7 +114,7 @@ export type RunEvent =
 
 export interface ChatMessage {
   id: string;
-  role: 'user' | 'assistant' | 'tool';
+  role: 'user' | 'assistant' | 'call' | 'tool';
   text: string;
   hasImage: boolean;
   citations: Citation[];

@@ -1,0 +1,41 @@
+# Render blueprint. Secrets use `sync: false`, so Render asks for them and they stay out of Git.
+# Free plan data is wiped on each restart or deploy. See "Deploy on Render" in the README.
+services:
+  - type: web
+    name: sidekick-api
+    runtime: node
+    plan: free
+    buildCommand: npm ci --include=dev && npm run build -w @sidekick/api
+    startCommand: npm run serve -w @sidekick/api
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: 26.12.0
+      - key: GEMMA_MODEL
+        value: gemma-4-26b-a4b-it
+      - key: DEVDRAFT_SIMULATE
+        value: "true"
+      - key: GOOGLE_API_KEY
+        sync: false
+      - key: DEMO_PASSCODE
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: EMAIL_FROM
+        sync: false
+      - key: WEB_ORIGIN # The URL of sidekick-web.
+        sync: false
+
+  - type: web
+    name: sidekick-web
+    runtime: node
+    plan: free
+    buildCommand: npm ci --include=dev && npm run build -w @sidekick/web
+    startCommand: npm run start -w @sidekick/web
+    envVars:
+      - key: NODE_VERSION
+        value: 26.12.0
+      - key: NEXT_TELEMETRY_DISABLED
+        value: "1"
+      - key: NEXT_PUBLIC_API_URL # The URL of sidekick-api. Used at build time.
+        sync: false

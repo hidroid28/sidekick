@@ -5,13 +5,15 @@ import type { ConversationSummary, Profile } from '@sidekick/shared';
 import { Chat } from '../components/Chat';
 import { DocumentsPanel, LibraryPanel, RecordsPanel } from '../components/Panels';
 import { PasscodeGate, ProfileDialog } from '../components/Dialogs';
+import { PaymentsPanel } from '../components/PaymentsPanel';
 import { api, ApiError } from '../lib/api';
 
-type View = 'chat' | 'records' | 'documents' | 'library';
+type View = 'chat' | 'records' | 'payments' | 'documents' | 'library';
 
 const VIEWS: { id: View; label: string }[] = [
   { id: 'chat', label: 'Chat' },
   { id: 'records', label: 'Records' },
+  { id: 'payments', label: 'Payments' },
   { id: 'documents', label: 'Documents' },
   { id: 'library', label: 'Skills & rules' },
 ];
@@ -111,6 +113,7 @@ export default function Home() {
           />
         )}
         {view === 'records' && <RecordsPanel />}
+        {view === 'payments' && <PaymentsPanel />}
         {view === 'documents' && <DocumentsPanel />}
         {view === 'library' && <LibraryPanel />}
       </main>

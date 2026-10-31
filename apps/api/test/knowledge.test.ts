@@ -65,11 +65,23 @@ describe('KnowledgeService', () => {
     expect(service.search('deposit')).toMatchObject({ citations: [{ document: 'c.txt', part: 1 }] });
   });
 
-  it('says when nothing matches', () => {
-    expect(knowledgeService().search('anything')).toEqual({
-      text: 'No matching text was found in the uploaded documents.',
-      citations: [],
-    });
+  it('says when there are no documents', () => {
+    expect(knowledgeService().search('anything')).toEqual({ text: 'No documents have been uploaded.', citations: [] });
+  });
+
+  it('finds a document by its file name', async () => {
+    const service = knowledgeService();
+    await service.upload({ name: 'contract.txt', mimeType: 'text/plain', data: base64('This agreement covers uniforms.') });
+    expect(service.search('my contract')).toMatchObject({ citations: [{ document: 'contract.txt', part: 1 }] });
+  });
+
+  it('shows opening text when no word matches', async () => {
+    const service = knowledgeService();
+    await service.upload({ name: 'a.txt', mimeType: 'text/plain', data: base64('The deposit is 40%.') });
+    const result = service.search('upfront');
+    expect(result.text).toContain('No exact word match');
+    expect(result.text).toContain('The deposit is 40%.');
+    expect(result.citations).toEqual([{ document: 'a.txt', part: 1 }]);
   });
 
   it('rejects files over the limit', async () => {

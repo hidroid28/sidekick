@@ -112,6 +112,30 @@ describe('GeminiProvider', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it('retries once after a server error', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(new Response('oops', { status: 500 }))
+      .mockResolvedValueOnce(new Response(streamOf(sse([{ text: 'Recovered' }]))));
+    vi.stubGlobal('fetch', fetchMock);
+    expect(await all(new GeminiProvider(config()).stream(messages, {}))).toEqual(['Recovered']);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('gives up after one retry', async () => {
+    const fetchMock = vi.fn(async () => new Response('oops', { status: 503 }));
+    vi.stubGlobal('fetch', fetchMock);
+    await expect(all(new GeminiProvider(config()).stream(messages, {}))).rejects.toThrow('could not answer');
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not retry rate limits', async () => {
+    const fetchMock = vi.fn(async () => new Response('quota', { status: 429 }));
+    vi.stubGlobal('fetch', fetchMock);
+    await expect(all(new GeminiProvider(config()).stream(messages, {}))).rejects.toThrow(/busy/);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
   it('turns rate limits into a friendly message', async () => {
     vi.stubGlobal('fetch', async () => new Response('quota', { status: 429 }));
     await expect(all(new GeminiProvider(config()).stream(messages, {}))).rejects.toThrow(/busy/);

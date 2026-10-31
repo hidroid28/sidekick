@@ -14,9 +14,10 @@ export interface PromptInput {
   tools: ToolSpec[];
   profile: Profile;
   today: string;
+  documents?: string[];
 }
 
-export function buildSystemPrompt({ rules, skills, activeSkill, tools, profile, today }: PromptInput) {
+export function buildSystemPrompt({ rules, skills, activeSkill, tools, profile, today, documents = [] }: PromptInput) {
   const facts = [
     profile.name && `Name: ${profile.name}`,
     profile.work && `What they do: ${profile.work}`,
@@ -33,6 +34,11 @@ export function buildSystemPrompt({ rules, skills, activeSkill, tools, profile, 
       .map((t) => `- ${t.name} ${t.args}: ${t.description}`)
       .join('\n')}`,
   ];
+  if (documents.length && tools.some((t) => t.name === 'search_documents')) {
+    sections.push(
+      `## Uploaded documents\n${documents.map((name) => `- ${name}`).join('\n')}\nThese files are already uploaded, so never ask for them again. If a question could relate to them, call search_documents before answering. Search with key words, and try other words if the first result does not help. If the text does not contain the answer, say so.`,
+    );
+  }
   if (activeSkill) sections.push(`## Active skill: ${activeSkill.name}\n${activeSkill.body}`);
   return sections.join('\n\n');
 }

@@ -1,8 +1,11 @@
+import { setTimeout as sleep } from 'node:timers/promises';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { CONFIG } from '../config.js';
 import type { AppConfig } from '../config.js';
 import { ModelError } from './model-provider.js';
 import type { ModelMessage, ModelProvider } from './model-provider.js';
+
+const RETRY_DELAY_MS = 800;
 
 interface Part { text?: string; thought?: boolean; inlineData?: { mimeType: string; data: string } }
 interface Content { role: 'user' | 'model'; parts: Part[] }
@@ -65,13 +68,21 @@ export class GeminiProvider implements ModelProvider {
     if (!apiKey || !model) {
       throw new ModelError('The assistant is not set up yet. Add GOOGLE_API_KEY and GEMMA_MODEL to apps/api/.env.');
     }
-    // The key goes in a header, so it can never appear in a logged URL.
-    const response = await fetch(`${apiBase}/models/${encodeURIComponent(model)}:streamGenerateContent?alt=sse`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json', 'x-goog-api-key': apiKey },
-      body: JSON.stringify(toGeminiRequest(messages, useSystemInstruction)),
-      signal: options.signal,
-    });
+    const request = () =>
+      // The key goes in a header, so it can never appear in a logged URL.
+      fetch(`${apiBase}/models/${encodeURIComponent(model)}:streamGenerateContent?alt=sse`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'x-goog-api-key': apiKey },
+        body: JSON.stringify(toGeminiRequest(messages, useSystemInstruction)),
+        signal: options.signal,
+      });
+    let response = await request();
+    // Server errors are often brief. Nothing has streamed yet, so one retry is safe.
+    if (response.status >= 500) {
+      this.logger.warn(`Gemini API ${response.status}, retrying once: ${(await response.text()).slice(0, 200)}`);
+      await sleep(RETRY_DELAY_MS, undefined, { signal: options.signal });
+      response = await request();
+    }
     if (!response.ok || !response.body) {
       this.logger.warn(`Gemini API ${response.status}: ${(await response.text()).slice(0, 500)}`);
       throw new ModelError(

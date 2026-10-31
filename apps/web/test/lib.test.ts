@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { ChatMessage, RecordRow } from '@sidekick/shared';
-import { formatAmount, recordTotals, slashQuery, uniqueCitations, visibleMessages } from '../lib/format';
+import { formatAmount, paymentMailto, recordTotals, slashQuery, uniqueCitations, visibleMessages } from '../lib/format';
 import { SseParser } from '../lib/sse';
 
 describe('SseParser', () => {
@@ -31,11 +31,11 @@ describe('format helpers', () => {
     expect(formatAmount(5, '')).toBe('0.05');
   });
 
-  it('hides tool messages', () => {
+  it('hides tool calls and results', () => {
     const message = (role: ChatMessage['role']): ChatMessage => ({
       id: role, role, text: '', hasImage: false, citations: [], createdAt: '',
     });
-    expect(visibleMessages([message('user'), message('tool'), message('assistant')]).map((m) => m.role)).toEqual([
+    expect(visibleMessages([message('user'), message('call'), message('tool'), message('assistant')]).map((m) => m.role)).toEqual([
       'user',
       'assistant',
     ]);
@@ -57,6 +57,15 @@ describe('format helpers', () => {
       { kind: 'expense', currency: 'USD', cents: 50 },
       { kind: 'quote', currency: 'ZMW', cents: 9 },
     ]);
+  });
+
+  it('builds a safely encoded email link', () => {
+    const mailto = paymentMailto({
+      token: 't', url: 'https://x/pay/t', recipientEmail: 'a+b@c.d', description: 'Hat & scarf', amount: '5',
+      currency: 'USDC', network: 'base', emailStatus: 'not_configured', simulated: false, createdAt: '',
+    });
+    expect(mailto.startsWith('mailto:a%2Bb%40c.d?subject=')).toBe(true);
+    expect(mailto).toContain('Hat%20%26%20scarf');
   });
 
   it('detects a slash command being typed', () => {

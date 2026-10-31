@@ -33,7 +33,8 @@ export class PasscodeGuard implements CanActivate {
     const expected = this.config.passcode;
     if (!expected) return true;
     const request = context.switchToHttp().getRequest<Request>();
-    if (request.path === '/health') return true;
+    // Payers have no passcode. Their tokens are random and the routes are read-only.
+    if (request.path === '/health' || request.path.startsWith('/public/')) return true;
     const given = Buffer.from(String(request.headers['x-demo-passcode'] ?? ''));
     const wanted = Buffer.from(expected);
     if (given.length === wanted.length && timingSafeEqual(given, wanted)) return true;

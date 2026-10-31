@@ -17,6 +17,7 @@ This is a hackathon demo, built for one user at a time. If you're a coding agent
 - **Approval cards:** nothing is saved until you press Approve.
 - **Photos:** attach a receipt and log it as an expense.
 - **Documents:** upload PDF, TXT, MD, or CSV files, up to 5 MB, and get answers that cite their sources.
+- **Payment links:** create a USDC payment link through Devdraft, email it to a client after you approve it, and give them a page with the address and QR code.
 - **Records:** see approved quotes and expenses, with totals per currency.
 
 ## Setup
@@ -59,6 +60,38 @@ npm run dev:web
 ```
 
 Open http://localhost:3000. After changing backend code, restart `dev:api`, because it compiles once at startup.
+
+## Payment links
+
+Add these to `apps/api/.env`, then restart the API:
+
+| Setting | Needed for |
+|---|---|
+| `DEVDRAFT_CLIENT_KEY`, `DEVDRAFT_CLIENT_SECRET` | Creating links. The key needs `wallet:read` and `transfer:create`. |
+| `RESEND_API_KEY` | Emailing links through Resend. Without it, the Payments page offers a pre-filled email to send yourself. |
+| `EMAIL_FROM` | The sender, on a domain verified in Resend. Without it, the test sender only reaches your own Resend account. |
+| `WEB_ORIGIN` | The address used in links. It must be a public URL, or clients cannot open them. |
+
+Set `DEVDRAFT_SIMULATE=true` to demo without a KYC-approved Devdraft account. No Devdraft call is made, the address cannot receive funds, and the payer page, Payments page, and emails all say it is a demo. Remove the setting to go live.
+
+Use `/send-payment-link` in chat, or the Payments page. Devdraft keys stay on the server.
+
+## Deploy on Render
+
+`render.yaml` defines two free services, `sidekick-api` and `sidekick-web`.
+
+1. In Render, choose **New > Blueprint** and connect this repo.
+2. Enter the secrets when asked. `GOOGLE_API_KEY` is required, and `DEMO_PASSCODE` should be set for any public link.
+3. Set `WEB_ORIGIN` to the `sidekick-web` URL, and `NEXT_PUBLIC_API_URL` to the `sidekick-api` URL.
+4. After changing `NEXT_PUBLIC_API_URL`, redeploy `sidekick-web`, because the value is built in.
+
+Each service gets a URL such as `https://sidekick-api.onrender.com`. If a name is taken, Render adds a suffix, so copy the real URLs from the dashboard.
+
+| Topic | What to know |
+|---|---|
+| Saved data | On the free plan, SQLite data and rule or skill edits are wiped on each restart or deploy, and payment links stop working. To keep data, use a paid plan with a disk, and set `DATABASE_PATH` to a file on it. |
+| Sleep | Free services sleep when idle, and the first request can take about a minute. Open both before a demo. |
+| Scaling | Run one API instance, because SQLite lives on one server. |
 
 ## Three-minute demo
 
@@ -135,7 +168,7 @@ Only the name and description sit in the prompt. The full text loads when the sk
 
 The app can edit existing rules and skills. To add a new one, create the file, and it appears on the next message with no restart.
 
-The starter skills are `draft-quote`, `chase-payment`, `track-expense`, `price-my-work`, `write-post`, and `explain-document`.
+The starter skills are `draft-quote`, `chase-payment`, `track-expense`, `price-my-work`, `write-post`, `explain-document`, `business-plan`, and `send-payment-link`.
 
 ## Tools
 
@@ -145,7 +178,7 @@ The starter skills are `draft-quote`, `chase-payment`, `track-expense`, `price-m
 | `end_skill` | read | while a skill is active |
 | `search_documents`, `list_records` | read | with no skill, or if the skill allows it |
 | `read_skill_file` | read | if the active skill allows it |
-| `create_quote`, `add_expense` | action, needs approval | only if the active skill allows it |
+| `create_quote`, `add_expense`, `send_payment_link` | action, needs approval | only if the active skill allows it |
 
 Tools use a text protocol, where the model replies with a fenced `tool` block. Sidekick hides that block from the user and runs it on the server. It also accepts common variations: `tool_code` and `tool_call` fences, JSON fences that hold only a call, and `name` with `arguments` keys. Ordinary JSON stays visible. This protocol was chosen because I found no official confirmation that Gemma 4 supports native function calling on the Gemini API. If `check:gemma` shows that native tools work, this can be swapped later inside `src/tools/protocol.ts` and `src/llm/gemini.provider.ts`.
 
@@ -171,7 +204,7 @@ npm test
 npm run typecheck
 ```
 
-There are 151 tests: 142 for the backend and 9 for the frontend's shared logic. They run offline with a fake model, so they need no key. They cover the tool protocol, permissions, approvals, money, file paths, Gemini streaming, document search, and the HTTP API.
+There are 205 tests: 195 for the backend and 10 for the frontend's shared logic. They run offline with a fake model, so they need no key. They cover the tool protocol, permissions, approvals, money, file paths, Gemini streaming, document search, and the HTTP API.
 
 During the build, these checks were also run but are not part of `npm test`:
 
@@ -199,9 +232,14 @@ These changed from the original plan:
 
 - It has not been run against real Gemma 4 yet.
 - It serves one user, with no accounts.
-- Search matches words, not meaning, so "payment" will not find "deposit".
+- Search matches words and file names, not meaning. When nothing matches, the assistant sees only the opening of each document, so answers deep inside a long file can be missed.
 - Scanned PDFs and DOCX files are not supported.
 - Quotes stay inside Sidekick and are not sent anywhere.
+- `DEVDRAFT_SIMULATE=true` is currently on, because the Devdraft account returned `403: KYC verification required`.
+- Payment links have not been run against the real Devdraft API or a real email server.
+- Devdraft has no status endpoint, so Sidekick cannot show whether a link was paid.
+- Every link for a wallet uses the same address with no memo, so two equal payments cannot be told apart.
+- Devdraft's guide says these routes return `404` after its next deploy from `main`. Confirm with its backend team.
 - A server restart loses replies in progress, and saved chats and pending approvals survive.
 - A skill stays active until you press End, the assistant ends it, or you start a new chat. While active, only its allowed tools work.
 - `ModelProvider` is ready for Ollama, but only the Gemini provider exists.

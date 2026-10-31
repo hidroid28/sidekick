@@ -49,13 +49,13 @@ export class ChatService {
     return this.startRun(conversationId);
   }
 
-  decide(id: string, approve: boolean) {
+  async decide(id: string, approve: boolean) {
     const pending = this.db.getPending(id);
     if (!pending) throw new NotFoundException('Action not found');
     if (!this.db.settlePending(id, approve ? 'approved' : 'rejected')) {
       throw new ConflictException('This action was already decided');
     }
-    const result = approve ? this.tools.execute(pending) : 'The user declined. Nothing was saved.';
+    const result = approve ? await this.tools.execute(pending) : 'The user declined. Nothing was saved.';
     this.db.addMessage(pending.conversation_id, 'tool', result);
     return this.startRun(pending.conversation_id);
   }

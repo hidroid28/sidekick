@@ -9,6 +9,9 @@ import { DatabaseService } from '../src/db/database.service.js';
 import { KnowledgeService } from '../src/knowledge/knowledge.service.js';
 import { LibraryService } from '../src/library/library.service.js';
 import type { ModelMessage, ModelProvider } from '../src/llm/model-provider.js';
+import { DevdraftClient } from '../src/payments/devdraft.client.js';
+import { EmailService } from '../src/payments/email.service.js';
+import { PaymentsService } from '../src/payments/payments.service.js';
 import { ToolsService } from '../src/tools/tools.service.js';
 
 export const QUOTE_SKILL = `---
@@ -74,9 +77,12 @@ export function makeServices(model: ModelProvider, config = testConfig()) {
   const db = new DatabaseService(config);
   const library = new LibraryService(config);
   const knowledge = new KnowledgeService(db);
-  const tools = new ToolsService(db, library, knowledge);
+  const devdraft = new DevdraftClient(config);
+  const email = new EmailService(config);
+  const payments = new PaymentsService(config, db, devdraft, email);
+  const tools = new ToolsService(db, library, knowledge, payments);
   const agent = new AgentService(model, db, library, tools);
-  return { db, library, knowledge, tools, agent, config };
+  return { db, library, knowledge, tools, agent, config, devdraft, email, payments };
 }
 
 export async function collect(run: (emit: (event: RunEvent) => void) => Promise<void>) {

@@ -11,6 +11,9 @@ import { KnowledgeService } from './knowledge/knowledge.service.js';
 import { LibraryService } from './library/library.service.js';
 import { GeminiProvider } from './llm/gemini.provider.js';
 import { MODEL_PROVIDER } from './llm/model-provider.js';
+import { DevdraftClient } from './payments/devdraft.client.js';
+import { EmailService } from './payments/email.service.js';
+import { PaymentsService } from './payments/payments.service.js';
 import { ToolsService } from './tools/tools.service.js';
 
 @Module({
@@ -24,6 +27,9 @@ import { ToolsService } from './tools/tools.service.js';
     DatabaseService,
     KnowledgeService,
     LibraryService,
+    DevdraftClient,
+    EmailService,
+    PaymentsService,
     RunsService,
     ToolsService,
   ],

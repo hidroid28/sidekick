@@ -11,7 +11,7 @@ if (!config.apiKey) {
 }
 const headers = { 'content-type': 'application/json', 'x-goog-api-key': config.apiKey };
 
-const listing = await fetch(`${config.apiBase}/models?pageSize=200`, { headers });
+const listing = await fetch(`${config.apiBase}/models?pageSize=200`, { headers, signal: AbortSignal.timeout(30_000) });
 if (!listing.ok) {
   console.error(`Could not list models: HTTP ${listing.status}`);
   process.exit(1);
@@ -44,14 +44,24 @@ const checks: [string, Record<string, unknown>][] = [
   }],
 ];
 
+const TIMEOUT_MS = 90_000;
 for (const [name, body] of checks) {
-  const response = await fetch(`${config.apiBase}/models/${encodeURIComponent(model)}:generateContent`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify(body),
-  });
-  const text = await response.text();
-  const ok = name === 'text tool protocol' ? response.ok && text.includes('tool') : response.ok;
-  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}  (HTTP ${response.status})`);
+  const started = Date.now();
+  const elapsed = () => `${((Date.now() - started) / 1000).toFixed(1)}s`;
+  try {
+    const response = await fetch(`${config.apiBase}/models/${encodeURIComponent(model)}:generateContent`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+    });
+    const text = await response.text();
+    const ok = name === 'text tool protocol' ? response.ok && text.includes('tool') : response.ok;
+    const detail = ok ? '' : `  ${text.replace(/\s+/g, ' ').slice(0, 220)}`;
+    console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}  (HTTP ${response.status}, ${elapsed()})${detail}`);
+  } catch (error) {
+    const reason = error instanceof Error ? error.name : 'error';
+    console.log(`FAIL  ${name}  (${reason} after ${elapsed()})`);
+  }
 }
 console.log('If systemInstruction passes, you can set GEMMA_USE_SYSTEM_INSTRUCTION=true.');

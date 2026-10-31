@@ -7,6 +7,7 @@ import type { ChunkRow } from '../db/database.service.js';
 
 const CHUNK_CHARS = 900;
 const OVERLAP_CHARS = 120;
+const FALLBACK_CHUNKS = 4;
 const STOP_WORDS = new Set(
   'a an and are as at be by do does for from has have how i in is it its me my of on or our so that the their them they this to was we what when where which who why will with you your'.split(' '),
 );
@@ -42,7 +43,8 @@ export function chunkText(text: string, size = CHUNK_CHARS, overlap = OVERLAP_CH
 export function rankChunks(chunks: ChunkRow[], query: string, limit = 4) {
   const terms = [...new Set(tokenize(query))];
   if (!terms.length || !chunks.length) return [];
-  const docs = chunks.map((chunk) => ({ chunk, words: tokenize(chunk.text) }));
+  // File names count, so "contract" finds contract.txt even if the text says "agreement".
+  const docs = chunks.map((chunk) => ({ chunk, words: tokenize(`${chunk.document} ${chunk.text}`) }));
   const averageLength = docs.reduce((sum, d) => sum + d.words.length, 0) / docs.length || 1;
   const k1 = 1.5;
   const b = 0.75;
@@ -83,11 +85,21 @@ export class KnowledgeService {
   }
 
   search(query: string): { text: string; citations: Citation[] } {
-    const matches = rankChunks(this.db.allChunks(), query);
-    if (!matches.length) return { text: 'No matching text was found in the uploaded documents.', citations: [] };
+    const chunks = this.db.allChunks();
+    if (!chunks.length) return { text: 'No documents have been uploaded.', citations: [] };
+    const matches = rankChunks(chunks, query);
+    if (matches.length) return this.format(matches);
+
+    // Keyword search misses synonyms, so show the opening text rather than reporting nothing.
+    const opening = chunks.filter((c) => c.part <= 2).slice(0, FALLBACK_CHUNKS);
+    const result = this.format(opening);
+    return { ...result, text: `No exact word match. These are the opening parts of the documents:\n\n${result.text}` };
+  }
+
+  private format(chunks: ChunkRow[]) {
     return {
-      text: matches.map((m) => `[${m.document}, part ${m.part}]\n${m.text}`).join('\n\n'),
-      citations: matches.map((m) => ({ document: m.document, part: m.part })),
+      text: chunks.map((c) => `[${c.document}, part ${c.part}]\n${c.text}`).join('\n\n'),
+      citations: chunks.map((c) => ({ document: c.document, part: c.part })),
     };
   }
 

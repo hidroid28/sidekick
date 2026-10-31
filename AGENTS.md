@@ -18,22 +18,25 @@ Sidekick is a hackathon demo: a practical AI assistant for one person, such as a
 
 Last updated: 2026-10-31.
 
-**Done:** chat with streaming, skills and rules with an in-app editor, ending a skill, a Copy button, profile setup, approval cards, quotes, expenses, document upload with citations, the Records page, the phone layout, and tolerance for tool format drift.
+**Done:** chat with streaming, skills and rules with an in-app editor, ending a skill, a Copy button, profile setup, approval cards, quotes, expenses, document upload with citations, the Records page, the phone layout, tolerance for tool format drift, the business plan skill, document search fixes, and payment links through Devdraft.
+
+**Verified on real Gemma 4 (`gemma-4-26b-a4b-it`):** chat, business plans, document questions, and the payment link flow up to approval and the result message. The payment flow used a local stand-in for Devdraft.
 
 **Not verified:**
 
-- **Real Gemma 4 has never been used.** No API key was available, so tests used a fake model, and a browser walkthrough used a local stand-in for the Gemini API.
-- The text tool protocol is untested on real model output, even with its tolerance for format drift. It is the biggest risk in the project.
+- `gemma-4-31b-it` is unreliable on the current key, with long waits and 500 errors. Use 26B.
+- `/draft-quote` has not been rerun on real Gemma since the fix for its tool loop.
+- Payment links have not been run against the real Devdraft API or real Resend email, and the payment pages have not been opened in a browser.
 - Photo upload works in a real browser, but only with a generated image and a stand-in model. Reading a real receipt is unproven.
 
 Do not describe any of these as working until you have seen them work. Update this section when that changes.
 
 ## Next tasks, in order
 
-1. **Verify Gemma 4.** Ask the user for a key if `apps/api/.env` has none, then run `npm run check:gemma`, set `GEMMA_MODEL`, and run it again.
-2. **Act on the results.** The README's setup table says what each failure means. If the model will not follow the tool protocol, tighten the prompt in `apps/api/src/agent/prompt.ts` first, then consider native tools if `check:gemma` shows they pass.
+1. **Verify payments.** `DEVDRAFT_SIMULATE=true` is on because the Devdraft account is waiting on KYC. Once it is approved, remove that setting, then check a real link, the payment page, and an email.
+2. **Run `/draft-quote` on real Gemma** and confirm it reaches the approval card.
 3. **Run the demo by hand** using the README's three-minute script, including a real receipt photo. Fix what breaks.
-4. **Deploy** to one small server with a persistent disk, and set `DEMO_PASSCODE`.
+4. **Deploy on Render** with `render.yaml`. The README has the steps. Set `DEMO_PASSCODE`.
 
 Only after those, and if the user wants them: an Ollama provider or DOCX upload.
 
@@ -43,7 +46,7 @@ Run everything from the repo root.
 
 ```powershell
 npm install
-npm test            # 151 offline tests, no key needed
+npm test            # 205 offline tests, no key needed
 npm run typecheck
 npm run build -w @sidekick/web
 npm run check:gemma # calls the real API, needs a key in apps/api/.env
@@ -58,7 +61,7 @@ Before calling work finished, run `npm test` and `npm run typecheck`. Also run t
 Markdown guides the model, but it cannot enforce anything. Keep these in code, and add a test when you touch them:
 
 1. **Tool permissions are server-side.** `ToolsService.dispatch` checks every call. Never rely on prompt text.
-2. **Actions need approval.** Anything that saves or sends must go through `pending_actions`. The model never performs one directly.
+2. **Actions need approval.** Anything that saves, sends, or creates a payment must go through `pending_actions`. The model never performs one directly.
 3. **An action runs once.** `settlePending` is the guard.
 4. **The server does the money.** Use whole cents, never a model's total, and never add different currencies together.
 5. **Outside content is untrusted.** Wrap tool results and document text with `wrapUntrusted`.

@@ -17,6 +17,10 @@ describe('loadConfig', () => {
     expect(loadConfig({})).toMatchObject({ useSystemInstruction: false, port: 3001, apiKey: undefined });
   });
 
+  it('removes a trailing slash from the web address', () => {
+    expect(loadConfig({ WEB_ORIGIN: 'https://a.test/' }).webOrigin).toBe('https://a.test');
+  });
+
   it('only enables systemInstruction for the exact value true', () => {
     expect(loadConfig({ GEMMA_USE_SYSTEM_INSTRUCTION: 'yes' }).useSystemInstruction).toBe(false);
     expect(loadConfig({ GEMMA_USE_SYSTEM_INSTRUCTION: 'true' }).useSystemInstruction).toBe(true);
@@ -56,6 +60,11 @@ describe('PasscodeGuard', () => {
 
   it('leaves the health check open', () => {
     expect(guard('abc').canActivate(contextFor('/health'))).toBe(true);
+  });
+
+  it('lets payers open a payment page, but keeps the link list private', () => {
+    expect(guard('abc').canActivate(contextFor('/public/pay/token'))).toBe(true);
+    expect(() => guard('abc').canActivate(contextFor('/payment-links'))).toThrow('Passcode required');
   });
 });
 

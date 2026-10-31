@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { FormEvent, KeyboardEvent } from 'react';
 import Markdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import type { ChatMessage, Citation, ImageInput, LibraryItem, PendingApproval } from '@sidekick/shared';
 import { api, photoToInput, streamRun } from '../lib/api';
 import { slashQuery, uniqueCitations, visibleMessages } from '../lib/format';
@@ -12,7 +13,14 @@ const STARTERS = [
   { label: 'Log a receipt', text: '/track-expense ' },
   { label: 'Chase a payment', text: '/chase-payment ' },
   { label: 'Price my work', text: '/price-my-work ' },
+  { label: 'Plan a business', text: '/business-plan ' },
+  { label: 'Send a payment link', text: '/send-payment-link ' },
 ];
+
+/** remark-gfm adds tables, which quotes and business plans rely on. Raw HTML stays off. */
+function Reply({ text }: { text: string }) {
+  return <Markdown remarkPlugins={[remarkGfm]}>{text}</Markdown>;
+}
 
 function CopyButton({ text }: { text: string }) {
   const [state, setState] = useState<'idle' | 'copied' | 'failed'>('idle');
@@ -201,14 +209,14 @@ export function Chat({
         {shown.map((message) => (
           <article key={message.id} className={`bubble ${message.role}`}>
             {message.hasImage && <p className="muted small">Photo attached</p>}
-            {message.role === 'assistant' ? <Markdown>{message.text}</Markdown> : <p>{message.text}</p>}
+            {message.role === 'assistant' ? <Reply text={message.text} /> : <p>{message.text}</p>}
             <Sources citations={message.citations} />
             {message.role === 'assistant' && <CopyButton text={message.text} />}
           </article>
         ))}
         {streaming && (
           <article className="bubble assistant">
-            <Markdown>{streaming}</Markdown>
+            <Reply text={streaming} />
           </article>
         )}
         {busy && !streaming && <p className="status">{status || 'Thinking…'}</p>}

@@ -1,4 +1,4 @@
-import type { ChatMessage, Citation, RecordRow } from '@sidekick/shared';
+import type { ChatMessage, Citation, PaymentLink, RecordRow } from '@sidekick/shared';
 
 export const formatAmount = (cents: number, currency: string) =>
   `${currency ? `${currency} ` : ''}${(cents / 100).toLocaleString('en', {
@@ -6,8 +6,9 @@ export const formatAmount = (cents: number, currency: string) =>
     maximumFractionDigits: 2,
   })}`;
 
-/** Tool results are internal, so they never appear in the chat. */
-export const visibleMessages = (messages: ChatMessage[]) => messages.filter((m) => m.role !== 'tool');
+/** Tool calls and results are internal, so they never appear in the chat. */
+export const visibleMessages = (messages: ChatMessage[]) =>
+  messages.filter((m) => m.role === 'user' || m.role === 'assistant');
 
 export function uniqueCitations(citations: Citation[]) {
   const seen = new Set<string>();
@@ -30,6 +31,19 @@ export function recordTotals(records: RecordRow[]) {
   }
   return [...totals.values()];
 }
+
+/** Builds an email the user can send by hand when no email service is set up. */
+export function paymentMailto(link: PaymentLink) {
+  const subject = `Payment request: ${link.amount} ${link.currency}`;
+  const body = `Please pay ${link.amount} ${link.currency} for: ${link.description}\n\nPayment details: ${link.url}`;
+  return `mailto:${encodeURIComponent(link.recipientEmail)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+}
+
+export const EMAIL_STATUS_LABELS: Record<PaymentLink['emailStatus'], string> = {
+  sent: 'Emailed',
+  not_configured: 'Not emailed',
+  failed: 'Email failed',
+};
 
 /** The slash-command prefix being typed, or undefined if the input is not a command. */
 export function slashQuery(input: string) {

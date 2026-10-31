@@ -1,12 +1,13 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { HttpException, Inject, Injectable } from '@nestjs/common';
 import { z } from 'zod';
-import { ExpenseArgsSchema, QuoteArgsSchema } from '@sidekick/shared';
-import type { Citation, ExpenseArgs, PendingApproval, QuoteArgs } from '@sidekick/shared';
+import { ExpenseArgsSchema, PaymentLinkArgsSchema, QuoteArgsSchema } from '@sidekick/shared';
+import type { Citation, ExpenseArgs, PaymentLinkArgs, PendingApproval, QuoteArgs } from '@sidekick/shared';
 import { DatabaseService } from '../db/database.service.js';
 import type { PendingRow } from '../db/database.service.js';
 import { KnowledgeService } from '../knowledge/knowledge.service.js';
 import { LibraryService } from '../library/library.service.js';
 import type { Skill } from '../library/library.service.js';
+import { PaymentsService } from '../payments/payments.service.js';
 import type { ToolCall } from './protocol.js';
 
 export interface ToolSpec { name: string; description: string; args: string; action: boolean; }
@@ -27,6 +28,12 @@ export const TOOLS: ToolSpec[] = [
     name: 'add_expense',
     description: 'Save an expense. The user must approve it.',
     args: '{"vendor": string, "amount": number, "currency"?: string, "category"?: "supplies"|"transport"|"food"|"rent"|"utilities"|"marketing"|"other", "date"?: string}',
+    action: true,
+  },
+  {
+    name: 'send_payment_link',
+    description: 'Create a USDC payment link and email it. The user must approve it.',
+    args: '{"email": string, "amount": number, "description": string}',
     action: true,
   },
 ];
@@ -65,6 +72,7 @@ export class ToolsService {
     @Inject(DatabaseService) private readonly db: DatabaseService,
     @Inject(LibraryService) private readonly library: LibraryService,
     @Inject(KnowledgeService) private readonly knowledge: KnowledgeService,
+    @Inject(PaymentsService) private readonly payments: PaymentsService,
   ) {}
 
   available(skill: Skill | undefined) {
@@ -112,9 +120,15 @@ export class ToolsService {
 
   private propose(tool: ToolSpec, call: ToolCall, context: ToolContext): ToolOutcome {
     const currency = this.db.getProfile().currency;
-    let args: QuoteArgs | ExpenseArgs;
+    let args: QuoteArgs | ExpenseArgs | PaymentLinkArgs;
     let summary: string;
-    if (tool.name === 'create_quote') {
+    if (tool.name === 'send_payment_link') {
+      const parsed = PaymentLinkArgsSchema.safeParse(call.args);
+      if (!parsed.success) return { kind: 'result', text: `Error: ${firstIssue(parsed.error)}` };
+      args = parsed.data;
+      const { email, amount, description } = parsed.data;
+      summary = `Email a payment link for ${amount.toFixed(2)} USDC to ${email}: ${description}`;
+    } else if (tool.name === 'create_quote') {
       const parsed = QuoteArgsSchema.safeParse(call.args);
       if (!parsed.success) return { kind: 'result', text: `Error: ${firstIssue(parsed.error)}` };
       args = parsed.data;
@@ -132,9 +146,10 @@ export class ToolsService {
   }
 
   /** Runs an approved action. Validated again, because stored args are still model output. */
-  execute(pending: PendingRow) {
+  async execute(pending: PendingRow) {
     const fallback = this.db.getProfile().currency;
     const raw: unknown = JSON.parse(pending.args);
+    if (pending.tool === 'send_payment_link') return this.sendPaymentLink(PaymentLinkArgsSchema.parse(raw));
     if (pending.tool === 'create_quote') {
       const args = QuoteArgsSchema.parse(raw);
       const currency = args.currency || fallback;
@@ -147,6 +162,20 @@ export class ToolsService {
     const cents = toCents(args.amount);
     this.db.addRecord('expense', `${args.vendor} (${args.category})`, cents, currency, args);
     return `Saved. Logged ${formatMoney(cents, currency)} at ${args.vendor}.`;
+  }
+
+  /** Never says an email went out unless it did, so the model cannot claim that either. */
+  private async sendPaymentLink(args: PaymentLinkArgs) {
+    try {
+      const link = await this.payments.create(args);
+      const total = `${link.amount} ${link.currency}${link.simulated ? ' (simulated demo, no real payment)' : ''}`;
+      if (link.emailStatus === 'sent') return `Saved. Payment link for ${total} emailed to ${link.recipientEmail}.`;
+      const reason = link.emailStatus === 'failed' ? 'The email failed to send' : 'Email is not set up';
+      return `Saved. Payment link for ${total} created, but it was NOT emailed. ${reason}. The user can send it from the Payments page. Link: ${link.url}`;
+    } catch (error) {
+      const message = error instanceof HttpException ? error.message : 'Something went wrong.';
+      return `Error: no payment link was created. ${message}`;
+    }
   }
 
   private describeRecords() {

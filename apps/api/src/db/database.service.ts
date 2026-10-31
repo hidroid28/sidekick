@@ -3,14 +3,14 @@ import { dirname } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { DatabaseSync } from 'node:sqlite';
 import { Inject, Injectable, OnModuleDestroy } from '@nestjs/common';
-import type { Citation, ImageInput, Profile, RecordRow } from '@sidekick/shared';
+import type { Citation, EmailStatus, ImageInput, Profile, RecordRow } from '@sidekick/shared';
 import { CONFIG } from '../config.js';
 import type { AppConfig } from '../config.js';
 
 export interface MessageRow {
   id: string;
   conversation_id: string;
-  role: 'user' | 'assistant' | 'tool';
+  role: 'user' | 'assistant' | 'call' | 'tool';
   text: string;
   image: string | null;
   citations: string | null;
@@ -26,6 +26,20 @@ export interface PendingRow {
   status: 'pending' | 'approved' | 'rejected';
 }
 export interface ChunkRow { document: string; part: number; text: string; }
+export interface PaymentLinkRow {
+  token: string;
+  deposit_id: string;
+  recipient_email: string;
+  description: string;
+  amount: string;
+  currency: string;
+  network: string;
+  to_address: string;
+  fee: string | null;
+  payee: string;
+  email_status: EmailStatus;
+  created_at: string;
+}
 export interface DocumentRow { id: string; name: string; parts: number; created_at: string; }
 
 const SCHEMA = `
@@ -44,6 +58,10 @@ CREATE TABLE IF NOT EXISTS pending_actions (
 CREATE TABLE IF NOT EXISTS records (
   id TEXT PRIMARY KEY, kind TEXT NOT NULL, title TEXT NOT NULL, amount_cents INTEGER NOT NULL,
   currency TEXT NOT NULL, data TEXT NOT NULL, created_at TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS payment_links (
+  token TEXT PRIMARY KEY, deposit_id TEXT NOT NULL, recipient_email TEXT NOT NULL, description TEXT NOT NULL,
+  amount TEXT NOT NULL, currency TEXT NOT NULL, network TEXT NOT NULL, to_address TEXT NOT NULL, fee TEXT,
+  payee TEXT NOT NULL, email_status TEXT NOT NULL, created_at TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS documents (
   id TEXT PRIMARY KEY, name TEXT NOT NULL, parts INTEGER NOT NULL, created_at TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS chunks (
@@ -190,6 +208,31 @@ export class DatabaseService implements OnModuleDestroy {
       currency: r.currency,
       createdAt: r.created_at,
     }));
+  }
+
+  addPaymentLink(link: Omit<PaymentLinkRow, 'created_at'>) {
+    const row: PaymentLinkRow = { ...link, created_at: now() };
+    this.db
+      .prepare(`INSERT INTO payment_links (token, deposit_id, recipient_email, description, amount, currency,
+                network, to_address, fee, payee, email_status, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+      .run(row.token, row.deposit_id, row.recipient_email, row.description, row.amount, row.currency,
+        row.network, row.to_address, row.fee, row.payee, row.email_status, row.created_at);
+    return row;
+  }
+
+  setPaymentEmailStatus(token: string, status: EmailStatus) {
+    this.db.prepare('UPDATE payment_links SET email_status = ? WHERE token = ?').run(status, token);
+  }
+
+  getPaymentLink(token: string) {
+    return this.db.prepare('SELECT * FROM payment_links WHERE token = ?').get(token) as PaymentLinkRow | undefined;
+  }
+
+  listPaymentLinks() {
+    return this.db
+      .prepare('SELECT * FROM payment_links ORDER BY created_at DESC, rowid DESC')
+      .all() as unknown as PaymentLinkRow[];
   }
 
   addDocument(name: string, chunks: string[]) {

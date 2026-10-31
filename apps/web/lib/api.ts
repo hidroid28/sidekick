@@ -4,14 +4,18 @@ import type {
   DocumentSummary,
   ImageInput,
   LibraryItem,
+  PaymentLink,
+  PaymentLinkArgs,
+  PaymentWalletStatus,
   Profile,
+  PublicPaymentLink,
   RecordRow,
   RunEvent,
   Upload,
 } from '@sidekick/shared';
 import { SseParser } from './sse';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
+const API_URL = (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001').replace(/\/+$/, '');
 const PASSCODE_KEY = 'sidekick-passcode';
 
 export class ApiError extends Error {
@@ -70,6 +74,10 @@ export const api = {
   endSkill: (id: string) => send<{ activeSkill: null }>('DELETE', `/conversations/${id}/skill`),
   stopRun: (id: string) => send<{ stopped: boolean }>('POST', `/runs/${id}/stop`, {}),
   records: () => request<RecordRow[]>('/records'),
+  paymentWallet: () => request<PaymentWalletStatus>('/payments/wallet'),
+  paymentLinks: () => request<PaymentLink[]>('/payment-links'),
+  createPaymentLink: (args: PaymentLinkArgs) => send<PaymentLink>('POST', '/payment-links', args),
+  publicPayment: (token: string) => request<PublicPaymentLink>(`/public/pay/${encodeURIComponent(token)}`),
   documents: () => request<DocumentSummary[]>('/documents'),
   uploadDocument: (file: Upload) => send<{ id: string; parts: number }>('POST', '/documents', file),
   deleteDocument: (id: string) => send<{ deleted: boolean }>('DELETE', `/documents/${id}`),
