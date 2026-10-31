@@ -4,7 +4,7 @@ Sidekick is a practical AI assistant for one person: a sole trader, a freelancer
 
 Its behaviour lives in plain Markdown files. Edit a rule or a skill in the app, and the next message follows it, with no redeploy.
 
-This is a hackathon demo, built for one user at a time.
+This is a hackathon demo, built for one user at a time. If you're a coding agent, start with [AGENTS.md](AGENTS.md).
 
 > **Status:** the full app works and is tested, but it has **not yet been run against the real Gemma 4 model**, because no API key was available during the build. Tests and the browser walkthrough used a stand-in for the Gemini API. Do step 2 of the setup below before relying on it.
 
