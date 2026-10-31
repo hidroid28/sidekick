@@ -1,0 +1,13 @@
+{
+  "name": "sidekick",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": ["apps/*", "packages/*"],
+  "scripts": {
+    "dev:api": "npm run dev -w @sidekick/api",
+    "dev:web": "npm run dev -w @sidekick/web",
+    "test": "npm test -w @sidekick/api && npm test -w @sidekick/web",
+    "typecheck": "npm run typecheck -w @sidekick/api && npm run typecheck -w @sidekick/web",
+    "check:gemma": "npm run check:gemma -w @sidekick/api"
+  }
+}

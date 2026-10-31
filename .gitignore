@@ -1,0 +1,10 @@
+node_modules/
+.next/
+dist/
+.env
+.env.local
+*.sqlite
+*.sqlite-*
+apps/api/data/
+*.tsbuildinfo
+next-env.d.ts
